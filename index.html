@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的时间轴</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Noto Sans SC", "PingFang SC", -apple-system, sans-serif;
+      background: #0D1117;
+      color: #E6EDF3;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to bottom, #0D1117, transparent);
+      padding: 24px 20px 40px;
+      text-align: center;
+      z-index: 50;
+    }
+
+    .filter-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-btn {
+      padding: 8px 20px;
+      border: 1px solid #30363D;
+      background: #21262D;
+      border-radius: 20px;
+      font-size: 14px;
+      color: #8B949E;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      font-family: inherit;
+    }
+
+    .filter-btn:hover {
+      border-color: #E17055;
+      color: #E17055;
+    }
+
+    .filter-btn.active {
+      background: #E17055;
+      border-color: #E17055;
+      color: #FFFFFF;
+    }
+
+    .timeline-wrapper {
+      padding: 120px 20px 60px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .timeline-container {
+      position: relative;
+    }
+
+    .timeline-row {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .timeline-row.reverse {
+      flex-direction: row-reverse;
+    }
+
+    .timeline-item {
+      flex-shrink: 0;
+    }
+
+    .timeline-item .card {
+      background: #21262D;
+      border: 1px solid #30363D;
+      border-radius: 12px;
+      overflow: hidden;
+      width: 160px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .timeline-item .card:hover {
+      border-color: #E17055;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .timeline-item .cover-img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      background: #161B22;
+    }
+
+    .timeline-item .card-content {
+      padding: 10px 12px;
+    }
+
+    .card-date {
+      font-size: 11px;
+      color: #E17055;
+      margin-bottom: 4px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #E6EDF3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .timeline-line-h {
+      height: 2px;
+      background: #30363D;
+      flex-grow: 1;
+      margin: 45px 10px 0;
+    }
+
+    .timeline-line-v {
+      width: 2px;
+      background: #30363D;
+      align-self: stretch;
+      margin: 0 0;
+    }
+
+    .timeline-turn {
+      width: 2px;
+      background: #30363D;
+      align-self: stretch;
+      margin: 0 -1px;
+    }
+
+    /* Detail Panel */
+    .detail-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .detail-overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    .detail-view {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 90%;
+      max-width: 1200px;
+      height: 100%;
+      background: #0D1117;
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+    }
+
+    .detail-view.active {
+      transform: translateX(0);
+    }
+
+    .detail-close {
+      position: fixed;
+      top: 20px;
+      right: calc(10% + 20px);
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      color: #E6EDF3;
+      cursor: pointer;
+      z-index: 102;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .detail-close.visible {
+      display: flex;
+    }
+
+    .detail-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .detail-header {
+      padding: 60px 40px 30px;
+      border-bottom: 1px solid #21262D;
+    }
+
+    .detail-date {
+      font-size: 14px;
+      color: #8B949E;
+      margin-bottom: 12px;
+    }
+
+    .detail-title {
+      font-size: 32px;
+      font-weight: 500;
+      color: #E6EDF3;
+      margin-bottom: 16px;
+    }
+
+    .detail-desc {
+      font-size: 16px;
+      color: #8B949E;
+      line-height: 1.8;
+    }
+
+    .detail-photos {
+      padding: 40px;
+    }
+
+    .days-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .day-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .day-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #E17055;
+      margin-bottom: 12px;
+    }
+
+    .photo-row {
+      margin-bottom: 12px;
+    }
+
+    .photo-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .photo-row-title {
+      font-size: 12px;
+      color: #8B949E;
+      margin-bottom: 8px;
+    }
+
+    .photo-row-content {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .photo-row-content::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .photo-row-content::-webkit-scrollbar-track {
+      background: #21262D;
+    }
+
+    .photo-row-content::-webkit-scrollbar-thumb {
+      background: #30363D;
+      border-radius: 2px;
+    }
+
+    .photo-item img {
+      height: auto;
+      max-height: 100px;
+      max-width: 140px;
+      object-fit: contain;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: #161B22;
+      flex-shrink: 0;
+    }
+
+    .photo-item img:hover {
+      transform: scale(1.03);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .photos-grid img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: #161B22;
+    }
+
+    .photos-grid img:hover {
+      transform: scale(1.03);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Image Viewer */
+    .viewer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .viewer-overlay.active {
+      display: flex;
+    }
+
+    .viewer-image {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    .viewer-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 50%;
+      color: #FFFFFF;
+      font-size: 28px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .viewer-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .viewer-set-cover {
+      position: absolute;
+      top: 20px;
+      right: 90px;
+      padding: 10px 16px;
+      background: rgba(225, 112, 85, 0.8);
+      border: none;
+      border-radius: 20px;
+      color: #FFFFFF;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .viewer-set-cover:hover {
+      background: #E17055;
+    }
+
+    .viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 50%;
+      color: #FFFFFF;
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .viewer-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .viewer-prev {
+      left: 30px;
+    }
+
+    .viewer-next {
+      right: 30px;
+    }
+
+    .viewer-counter {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #8B949E;
+    }
+
+    @media (max-width: 768px) {
+      .timeline-item .card {
+        width: 120px;
+      }
+
+      .timeline-item .cover-img {
+        height: 70px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" data-year="all">全部</button>
+    </div>
+  </header>
+
+  <div class="timeline-wrapper">
+    <div class="timeline-container" id="timeline"></div>
+  </div>
+
+  <div class="detail-overlay" id="detailOverlay"></div>
+  <button class="detail-close" id="detailClose">×</button>
+  <div class="detail-view" id="detailView">
+    <div class="detail-header">
+      <div class="detail-date" id="detailDate"></div>
+      <h2 class="detail-title" id="detailTitle"></h2>
+      <p class="detail-desc" id="detailDesc"></p>
+    </div>
+    <div class="detail-photos">
+      <h3>照片集</h3>
+      <div class="photos-grid" id="photosGrid"></div>
+    </div>
+  </div>
+
+  <div class="viewer-overlay" id="viewerOverlay">
+    <button class="viewer-close" id="viewerClose">×</button>
+    <button class="viewer-set-cover" id="viewerSetCover">设为封面</button>
+    <button class="viewer-nav viewer-prev" id="viewerPrev">‹</button>
+    <img class="viewer-image" id="viewerImage" src="" alt="">
+    <button class="viewer-nav viewer-next" id="viewerNext">›</button>
+    <div class="viewer-counter" id="viewerCounter"></div>
+  </div>
+
+  <script>
+    const container = document.getElementById('timeline');
+    const IMAGES_BASE = 'https://cdn.jsdelivr.net/gh/yang0401/mytimeline@main/record/';
+    const API_URL = 'events.json';
+    const ITEMS_PER_ROW = 5;
+
+    let allEvents = [];
+    let currentYear = 'all';
+    let currentEventId = null;
+    let currentImages = [];
+    let currentImageIndex = 0;
+
+    async function loadData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        allEvents = data.events;
+        renderFilterBar();
+        renderTimeline();
+      } catch (e) {
+        console.error('加载数据失败:', e);
+        container.innerHTML = `<div class="empty-state"><h3>加载失败</h3><p>请确保服务器已启动</p></div>`;
+      }
+    }
+
+    function renderFilterBar() {
+      const bar = document.getElementById('filterBar');
+      const years = [...new Set(allEvents.map(e => e.year))].sort((a, b) => b - a);
+
+      bar.innerHTML = '<button class="filter-btn active" data-year="all">全部</button>';
+      years.forEach(year => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.dataset.year = year;
+        btn.textContent = year;
+        bar.appendChild(btn);
+      });
+
+      bar.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentYear = btn.dataset.year;
+          renderTimeline();
+        });
+      });
+    }
+
+    function getFilteredEvents() {
+      let events = [...allEvents];
+      if (currentYear !== 'all') {
+        events = events.filter(e => e.year === currentYear);
+      }
+      events.sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+      });
+      return events;
+    }
+
+    function renderTimeline() {
+      container.innerHTML = '';
+      const events = getFilteredEvents();
+
+      if (events.length === 0) {
+        container.innerHTML = `<div class="empty-state"><h3>暂无记录</h3></div>`;
+        return;
+      }
+
+      let html = '';
+      const rows = Math.ceil(events.length / ITEMS_PER_ROW);
+
+      for (let row = 0; row < rows; row++) {
+        const isReverse = row % 2 === 1;
+        const rowEvents = events.slice(row * ITEMS_PER_ROW, (row + 1) * ITEMS_PER_ROW);
+
+        html += `<div class="timeline-row${isReverse ? ' reverse' : ''}">`;
+
+        rowEvents.forEach((event, i) => {
+          html += `
+            <div class="timeline-item">
+              <div class="card" data-id="${event.id}">
+                <img class="cover-img" src="${IMAGES_BASE}${event.cover}" alt="${event.title}">
+                <div class="card-content">
+                  <div class="card-date">${event.year}.${parseInt(event.month)}月</div>
+                  <div class="card-title">${event.title}</div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          if (i < rowEvents.length - 1) {
+            html += `<div class="timeline-line-h"></div>`;
+          }
+        });
+
+        // Fill empty slots to complete the row for proper turn
+        const emptySlots = ITEMS_PER_ROW - rowEvents.length;
+        if (emptySlots > 0 && row < rows - 1) {
+          for (let i = 0; i < emptySlots; i++) {
+            html += `<div class="timeline-line-h"></div>`;
+          }
+        }
+
+        html += `</div>`;
+
+        // Add vertical connector between rows (except after last row)
+        if (row < rows - 1) {
+          html += `<div style="display:flex;justify-content:${isReverse ? 'flex-start' : 'flex-end'};"><div class="timeline-turn" style="height:20px;width:2px;background:#30363D;margin-${isReverse ? 'left' : 'right'}:${(ITEMS_PER_ROW - 1) * 170 + 80}px;"></div></div>`;
+        }
+      }
+
+      container.innerHTML = html;
+
+      // Add click handlers
+      container.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', () => openDetail(card.dataset.id));
+      });
+    }
+
+    function openDetail(id) {
+      const event = allEvents.find(e => e.id === id);
+      if (!event) return;
+
+      currentEventId = event.id;
+      document.getElementById('detailDate').textContent = `${event.year}年${parseInt(event.month)}月`;
+      document.getElementById('detailTitle').textContent = event.title;
+      document.getElementById('detailDesc').textContent = event.description;
+
+      const photosGrid = document.getElementById('photosGrid');
+      let photosHtml = '<div class="days-container">';
+
+      // Collect all photos for viewer
+      let allPhotos = [];
+
+      event.days.forEach(day => {
+        photosHtml += `<div class="day-section">`;
+        photosHtml += `<div class="day-title">${day.date}</div>`;
+
+        // Itinerary row
+        if (day.itinerary && day.itinerary.length > 0) {
+          photosHtml += `<div class="photo-row">`;
+          photosHtml += `<div class="photo-row-title">行程图</div>`;
+          photosHtml += `<div class="photo-row-content">`;
+          day.itinerary.forEach((img) => {
+            const globalIndex = allPhotos.length;
+            allPhotos.push(img);
+            photosHtml += `<div class="photo-item"><img src="${IMAGES_BASE}${img}" alt="行程图" data-index="${globalIndex}"></div>`;
+          });
+          photosHtml += `</div></div>`;
+        }
+
+        // Photos row
+        if (day.photos && day.photos.length > 0) {
+          photosHtml += `<div class="photo-row">`;
+          photosHtml += `<div class="photo-row-title">照片集</div>`;
+          photosHtml += `<div class="photo-row-content">`;
+          day.photos.forEach((img) => {
+            const globalIndex = allPhotos.length;
+            allPhotos.push(img);
+            photosHtml += `<div class="photo-item"><img src="${IMAGES_BASE}${img}" alt="照片" data-index="${globalIndex}"></div>`;
+          });
+          photosHtml += `</div></div>`;
+        }
+
+        photosHtml += `</div>`;
+      });
+
+      photosHtml += '</div>';
+      photosGrid.innerHTML = photosHtml;
+
+      photosGrid.querySelectorAll('img').forEach(img => {
+        img.addEventListener('click', () => openViewer(allPhotos, parseInt(img.dataset.index)));
+      });
+
+      currentImages = allPhotos;
+      document.getElementById('detailOverlay').classList.add('active');
+      document.getElementById('detailView').classList.add('active');
+      document.getElementById('detailClose').classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('active');
+      document.getElementById('detailView').classList.remove('active');
+      document.getElementById('detailClose').classList.remove('visible');
+      document.body.style.overflow = '';
+      closeViewer();
+    }
+
+    function openViewer(images, index) {
+      currentImages = images;
+      currentImageIndex = index;
+      updateViewerImage();
+      document.getElementById('viewerOverlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeViewer() {
+      document.getElementById('viewerOverlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function updateViewerImage() {
+      const img = document.getElementById('viewerImage');
+      const currentImg = currentImages[currentImageIndex];
+      img.src = IMAGES_BASE + currentImg;
+      document.getElementById('viewerCounter').textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
+    }
+
+    function navigateViewer(dir) {
+      currentImageIndex = (currentImageIndex + dir + currentImages.length) % currentImages.length;
+      updateViewerImage();
+    }
+
+    document.getElementById('detailOverlay').addEventListener('click', closeDetail);
+    document.getElementById('detailClose').addEventListener('click', closeDetail);
+    document.getElementById('viewerClose').addEventListener('click', closeViewer);
+    document.getElementById('viewerPrev').addEventListener('click', () => navigateViewer(-1));
+    document.getElementById('viewerNext').addEventListener('click', () => navigateViewer(1));
+    document.getElementById('viewerSetCover').addEventListener('click', async () => {
+      if (!currentEventId || !currentImages[currentImageIndex]) return;
+      // GitHub Pages version: show message that this feature requires local server
+      alert('设置封面功能需要在本地服务器运行才能生效');
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('viewerOverlay').classList.contains('active')) {
+          closeViewer();
+        } else if (document.getElementById('detailView').classList.contains('active')) {
+          closeDetail();
+        }
+      }
+      if (document.getElementById('viewerOverlay').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') navigateViewer(-1);
+        if (e.key === 'ArrowRight') navigateViewer(1);
+      }
+    });
+
+    loadData();
+  </script>
+</body>
+</html>
